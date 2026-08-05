@@ -338,16 +338,24 @@ fun MainScreen(
                 )
             }
 
-            // Django Registration Dedicated Full-Screen Onboarding
+            // Django Registration Dedicated Full-Screen Onboarding Modal
             if (uiState.showDjangoRegistrationDialog) {
-                DjangoRegistrationScreen(
-                    initialProfile = uiState.clientProfile,
-                    isAlreadyRegistered = uiState.isRegisteredWithDjango,
-                    onCompleteRegistration = { profile ->
-                        viewModel.saveClientRegistration(profile)
-                    },
-                    onDismissRequest = { viewModel.dismissRegistrationDialog() }
-                )
+                androidx.compose.ui.window.Dialog(
+                    onDismissRequest = { viewModel.dismissRegistrationDialog() },
+                    properties = androidx.compose.ui.window.DialogProperties(
+                        usePlatformDefaultWidth = false,
+                        decorFitsSystemWindows = false
+                    )
+                ) {
+                    DjangoRegistrationScreen(
+                        initialProfile = uiState.clientProfile,
+                        isAlreadyRegistered = uiState.isRegisteredWithDjango,
+                        onCompleteRegistration = { profile ->
+                            viewModel.saveClientRegistration(profile)
+                        },
+                        onDismissRequest = { viewModel.dismissRegistrationDialog() }
+                    )
+                }
             }
         }
     }

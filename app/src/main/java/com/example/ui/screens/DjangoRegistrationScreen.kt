@@ -55,6 +55,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -110,7 +111,7 @@ fun DjangoRegistrationScreen(
     val clipboardManager = LocalClipboardManager.current
     var currentStep by remember { mutableIntStateOf(1) }
 
-    // State fields
+    // Form states
     var clientName by remember { mutableStateOf(initialProfile?.clientName ?: "") }
     var city by remember { mutableStateOf(initialProfile?.city ?: "Douala") }
     var neighborhood by remember { mutableStateOf(initialProfile?.neighborhood ?: "Akwa") }
@@ -118,7 +119,7 @@ fun DjangoRegistrationScreen(
 
     var latitudeText by remember { mutableStateOf(initialProfile?.latitude?.toString() ?: "4.0511") }
     var longitudeText by remember { mutableStateOf(initialProfile?.longitude?.toString() ?: "9.7679") }
-    var locationSource by remember { mutableStateOf("Coordonnées GPS") }
+    var locationSource by remember { mutableStateOf("Coordonnées GPS Par Défaut") }
 
     var clientCode by remember {
         mutableStateOf(
@@ -134,7 +135,7 @@ fun DjangoRegistrationScreen(
     var isSubmitting by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // GPS Location launcher
+    // GPS Launcher
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -144,7 +145,7 @@ fun DjangoRegistrationScreen(
             val loc = LocationUtils.getCurrentLocation(context)
             latitudeText = String.format("%.5f", loc.latitude).replace(',', '.')
             longitudeText = String.format("%.5f", loc.longitude).replace(',', '.')
-            locationSource = "GPS Automatique (${loc.source})"
+            locationSource = "GPS Capturé (${loc.source})"
             Toast.makeText(context, "Position GPS capturée avec succès !", Toast.LENGTH_SHORT).show()
         } else {
             errorMessage = "Permission GPS non accordée. Saisie manuelle activée."
@@ -158,7 +159,7 @@ fun DjangoRegistrationScreen(
             val loc = LocationUtils.getCurrentLocation(context)
             latitudeText = String.format("%.5f", loc.latitude).replace(',', '.')
             longitudeText = String.format("%.5f", loc.longitude).replace(',', '.')
-            locationSource = "GPS Automatique (${loc.source})"
+            locationSource = "GPS Capturé (${loc.source})"
             Toast.makeText(context, "Position GPS capturée avec succès !", Toast.LENGTH_SHORT).show()
         } else {
             permissionLauncher.launch(
@@ -174,71 +175,89 @@ fun DjangoRegistrationScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
+            Column {
+                TopAppBar(
+                    title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Enregistrement Client",
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = NetTextPrimary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(NetSecondaryBlue.copy(alpha = 0.12f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = listOf(NetSecondaryBlue, NetPrimaryCyan)
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Text("Django Admin", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = NetSecondaryBlue)
+                                Icon(Icons.Default.Dns, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column {
+                                Text(
+                                    text = "Fiche Abonné NetGuard",
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = NetTextPrimary
+                                )
+                                Text(
+                                    text = "Synchronisation Serveur Django Admin v2.4",
+                                    fontSize = 11.sp,
+                                    color = NetSecondaryBlue,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         }
-                        Text(
-                            text = "Fiche Abonné • Étape $currentStep sur 3",
-                            fontSize = 12.sp,
-                            color = NetTextSecondary
-                        )
-                    }
-                },
-                navigationIcon = {
-                    if (currentStep > 1) {
-                        IconButton(onClick = { currentStep-- }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Précédent", tint = NetTextPrimary)
+                    },
+                    navigationIcon = {
+                        if (currentStep > 1) {
+                            IconButton(onClick = { currentStep-- }) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = "Précédent", tint = NetTextPrimary)
+                            }
+                        } else if (isAlreadyRegistered) {
+                            IconButton(onClick = onDismissRequest) {
+                                Icon(Icons.Default.Close, contentDescription = "Fermer", tint = NetTextPrimary)
+                            }
                         }
-                    } else if (isAlreadyRegistered) {
+                    },
+                    actions = {
                         IconButton(onClick = onDismissRequest) {
                             Icon(Icons.Default.Close, contentDescription = "Fermer", tint = NetTextPrimary)
                         }
-                    }
-                },
-                actions = {
-                    if (isAlreadyRegistered) {
-                        IconButton(onClick = onDismissRequest) {
-                            Icon(Icons.Default.Close, contentDescription = "Fermer", tint = NetTextPrimary)
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = NetCardSurface)
-            )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = NetCardSurface)
+                )
+
+                // Animated Top Progress Indicator
+                LinearProgressIndicator(
+                    progress = { currentStep / 3f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp),
+                    color = NetPrimaryCyan,
+                    trackColor = NetCardBorder
+                )
+            }
         },
         bottomBar = {
             Surface(
                 color = NetCardSurface,
-                shadowElevation = 8.dp,
+                shadowElevation = 12.dp,
                 border = androidx.compose.foundation.BorderStroke(1.dp, NetCardBorder)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     if (currentStep > 1) {
                         OutlinedButton(
                             onClick = { currentStep-- },
                             enabled = !isSubmitting,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
                             border = androidx.compose.foundation.BorderStroke(1.5.dp, NetSecondaryBlue),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 containerColor = NetCardSurface,
@@ -248,11 +267,11 @@ fun DjangoRegistrationScreen(
                             ),
                             modifier = Modifier
                                 .weight(1f)
-                                .height(52.dp)
+                                .height(54.dp)
                                 .testTag("registration_screen_prev_button")
                         ) {
                             Icon(Icons.Default.ArrowBack, contentDescription = null, tint = NetSecondaryBlue, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text("Précédent", color = NetSecondaryBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
@@ -261,7 +280,7 @@ fun DjangoRegistrationScreen(
                         onClick = {
                             if (currentStep == 1) {
                                 if (clientName.trim().isBlank()) {
-                                    errorMessage = "Veuillez indiquer le nom complet du client ou de l'entreprise."
+                                    errorMessage = "Veuillez préciser le nom complet du client ou de l'entreprise."
                                 } else {
                                     errorMessage = null
                                     currentStep = 2
@@ -288,7 +307,7 @@ fun DjangoRegistrationScreen(
                             }
                         },
                         enabled = !isSubmitting,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = NetSecondaryBlue,
                             contentColor = Color.White,
@@ -296,8 +315,8 @@ fun DjangoRegistrationScreen(
                             disabledContentColor = NetTextMuted
                         ),
                         modifier = Modifier
-                            .weight(1.3f)
-                            .height(52.dp)
+                            .weight(1.4f)
+                            .height(54.dp)
                             .testTag("registration_screen_next_button")
                     ) {
                         if (isSubmitting) {
@@ -322,113 +341,114 @@ fun DjangoRegistrationScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // High-fidelity Visual Stepper Header
+            // High-End Spacious Stepper Bar
             Surface(
                 color = NetCardSurface,
                 shadowElevation = 2.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        val steps = listOf("Identité", "GPS & Code", "Validation")
-                        steps.forEachIndexed { index, title ->
-                            val stepNum = index + 1
-                            val isCompleted = stepNum < currentStep
-                            val isCurrent = stepNum == currentStep
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val steps = listOf("Identité", "GPS & Pass", "Validation")
+                    steps.forEachIndexed { index, title ->
+                        val stepNum = index + 1
+                        val isCompleted = stepNum < currentStep
+                        val isCurrent = stepNum == currentStep
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f, fill = false)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        when {
+                                            isCompleted -> NetOnlineGreen
+                                            isCurrent -> NetSecondaryBlue
+                                            else -> NetDarkBackground
+                                        }
+                                    )
+                                    .border(
+                                        width = if (isCurrent) 2.dp else 1.dp,
+                                        color = when {
+                                            isCompleted -> NetOnlineGreen
+                                            isCurrent -> NetSecondaryBlue
+                                            else -> NetCardBorder
+                                        },
+                                        shape = CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
                             ) {
+                                if (isCompleted) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                } else {
+                                    Text(
+                                        text = "$stepNum",
+                                        color = if (isCurrent) Color.White else NetTextMuted,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Text(
+                                text = title,
+                                fontSize = 12.sp,
+                                fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Medium,
+                                color = when {
+                                    isCurrent -> NetTextPrimary
+                                    isCompleted -> NetOnlineGreen
+                                    else -> NetTextMuted
+                                }
+                            )
+
+                            if (index < steps.size - 1) {
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
+                                        .weight(1f)
+                                        .height(2.dp)
+                                        .clip(RoundedCornerShape(2.dp))
                                         .background(
-                                            when {
-                                                isCompleted -> NetOnlineGreen
-                                                isCurrent -> NetSecondaryBlue
-                                                else -> NetDarkBackground
-                                            }
+                                            if (stepNum < currentStep) NetOnlineGreen
+                                            else NetCardBorder
                                         )
-                                        .border(
-                                            width = if (isCurrent) 2.dp else 1.dp,
-                                            color = when {
-                                                isCompleted -> NetOnlineGreen
-                                                isCurrent -> NetSecondaryBlue
-                                                else -> NetCardBorder
-                                            },
-                                            shape = CircleShape
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (isCompleted) {
-                                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                                    } else {
-                                        Text(
-                                            text = "$stepNum",
-                                            color = if (isCurrent) Color.White else NetTextMuted,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.width(6.dp))
-
-                                Text(
-                                    text = title,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Medium,
-                                    color = when {
-                                        isCurrent -> NetTextPrimary
-                                        isCompleted -> NetOnlineGreen
-                                        else -> NetTextMuted
-                                    }
                                 )
-
-                                if (index < steps.size - 1) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(3.dp)
-                                            .clip(RoundedCornerShape(2.dp))
-                                            .background(
-                                                if (stepNum < currentStep) NetOnlineGreen
-                                                else NetCardBorder
-                                            )
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                }
+                                Spacer(modifier = Modifier.width(8.dp))
                             }
                         }
                     }
                 }
             }
 
+            // Main Scrollable Form Content
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .padding(horizontal = 20.dp, vertical = 20.dp)
             ) {
                 if (errorMessage != null) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
+                            .clip(RoundedCornerShape(16.dp))
                             .background(NetWarningAmber.copy(alpha = 0.15f))
-                            .border(1.dp, NetWarningAmber, RoundedCornerShape(14.dp))
-                            .padding(14.dp)
+                            .border(1.dp, NetWarningAmber, RoundedCornerShape(16.dp))
+                            .padding(16.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Shield, contentDescription = null, tint = NetWarningAmber, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(10.dp))
+                            Icon(Icons.Default.Shield, contentDescription = null, tint = NetWarningAmber, modifier = Modifier.size(22.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = errorMessage!!,
                                 color = NetWarningAmber,
@@ -437,7 +457,7 @@ fun DjangoRegistrationScreen(
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                 }
 
                 AnimatedContent(
@@ -455,12 +475,12 @@ fun DjangoRegistrationScreen(
                 ) { targetStep ->
                     when (targetStep) {
                         1 -> {
-                            // PAGE 1: CLIENT IDENTITY
-                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            // PAGE 1: CLIENT IDENTITY & CONTACT
+                            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                                 // Onboarding Banner
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = RoundedCornerShape(22.dp),
                                     colors = CardDefaults.cardColors(containerColor = NetCardSurface),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, NetCardBorder)
                                 ) {
@@ -470,37 +490,37 @@ fun DjangoRegistrationScreen(
                                             .background(
                                                 Brush.horizontalGradient(
                                                     colors = listOf(
-                                                        NetSecondaryBlue.copy(alpha = 0.08f),
-                                                        NetAccentBlue.copy(alpha = 0.03f)
+                                                        NetSecondaryBlue.copy(alpha = 0.12f),
+                                                        NetPrimaryCyan.copy(alpha = 0.04f)
                                                     )
                                                 )
                                             )
-                                            .padding(20.dp)
+                                            .padding(22.dp)
                                     ) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Box(
                                                 modifier = Modifier
-                                                    .size(52.dp)
+                                                    .size(56.dp)
                                                     .clip(CircleShape)
                                                     .background(NetSecondaryBlue),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                                                Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(30.dp))
                                             }
                                             Spacer(modifier = Modifier.width(16.dp))
                                             Column {
                                                 Text(
-                                                    text = "Identité du Client Abonné 👤",
-                                                    fontSize = 18.sp,
+                                                    text = "Coordonnées Abonné 👤",
+                                                    fontSize = 19.sp,
                                                     fontWeight = FontWeight.ExtraBold,
                                                     color = NetTextPrimary
                                                 )
-                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Spacer(modifier = Modifier.height(4.dp))
                                                 Text(
-                                                    text = "Renseignez les coordonnées de l'abonné pour alimenter le serveur Django de supervision.",
+                                                    text = "Identifiez l'abonné ou le site client pour associer son modem à la carte d'incident Django.",
                                                     fontSize = 12.sp,
                                                     color = NetTextSecondary,
-                                                    lineHeight = 16.sp
+                                                    lineHeight = 17.sp
                                                 )
                                             }
                                         }
@@ -510,18 +530,18 @@ fun DjangoRegistrationScreen(
                                 // Form Card
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = RoundedCornerShape(22.dp),
                                     colors = CardDefaults.cardColors(containerColor = NetCardSurface),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, NetCardBorder)
                                 ) {
-                                    Column(modifier = Modifier.padding(20.dp)) {
+                                    Column(modifier = Modifier.padding(22.dp)) {
                                         OutlinedTextField(
                                             value = clientName,
                                             onValueChange = {
                                                 clientName = it
                                                 errorMessage = null
                                             },
-                                            label = { Text("Nom Complet Client / Raison Sociale *", color = NetTextMuted, fontSize = 13.sp) },
+                                            label = { Text("Nom Complet Abonné / Raison Sociale *", color = NetTextMuted, fontSize = 13.sp) },
                                             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = NetSecondaryBlue) },
                                             trailingIcon = {
                                                 if (clientName.isNotBlank()) {
@@ -531,7 +551,7 @@ fun DjangoRegistrationScreen(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .testTag("screen_input_client_name"),
-                                            shape = RoundedCornerShape(14.dp),
+                                            shape = RoundedCornerShape(16.dp),
                                             singleLine = true,
                                             colors = OutlinedTextFieldDefaults.colors(
                                                 focusedBorderColor = NetSecondaryBlue,
@@ -541,7 +561,7 @@ fun DjangoRegistrationScreen(
                                             )
                                         )
 
-                                        Spacer(modifier = Modifier.height(18.dp))
+                                        Spacer(modifier = Modifier.height(20.dp))
 
                                         // Quick city selector chips
                                         Text(
@@ -550,33 +570,33 @@ fun DjangoRegistrationScreen(
                                             fontWeight = FontWeight.SemiBold,
                                             color = NetTextSecondary
                                         )
-                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Spacer(modifier = Modifier.height(8.dp))
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             popularCities.forEach { popCity ->
                                                 val isSelected = city.equals(popCity, ignoreCase = true)
                                                 FilterChip(
                                                     selected = isSelected,
                                                     onClick = { city = popCity },
-                                                    label = { Text(popCity, fontSize = 11.sp) },
+                                                    label = { Text(popCity, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium) },
                                                     colors = FilterChipDefaults.filterChipColors(
                                                         selectedContainerColor = NetSecondaryBlue,
                                                         selectedLabelColor = Color.White,
                                                         containerColor = NetDarkBackground,
                                                         labelColor = NetTextPrimary
                                                     ),
-                                                    shape = RoundedCornerShape(10.dp)
+                                                    shape = RoundedCornerShape(12.dp)
                                                 )
                                             }
                                         }
 
-                                        Spacer(modifier = Modifier.height(14.dp))
+                                        Spacer(modifier = Modifier.height(18.dp))
 
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(14.dp)
                                         ) {
                                             OutlinedTextField(
                                                 value = city,
@@ -586,7 +606,7 @@ fun DjangoRegistrationScreen(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .testTag("screen_input_city"),
-                                                shape = RoundedCornerShape(14.dp),
+                                                shape = RoundedCornerShape(16.dp),
                                                 singleLine = true,
                                                 colors = OutlinedTextFieldDefaults.colors(
                                                     focusedBorderColor = NetSecondaryBlue,
@@ -604,7 +624,7 @@ fun DjangoRegistrationScreen(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .testTag("screen_input_neighborhood"),
-                                                shape = RoundedCornerShape(14.dp),
+                                                shape = RoundedCornerShape(16.dp),
                                                 singleLine = true,
                                                 colors = OutlinedTextFieldDefaults.colors(
                                                     focusedBorderColor = NetSecondaryBlue,
@@ -615,17 +635,17 @@ fun DjangoRegistrationScreen(
                                             )
                                         }
 
-                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Spacer(modifier = Modifier.height(20.dp))
 
                                         OutlinedTextField(
                                             value = phone,
                                             onValueChange = { phone = it },
-                                            label = { Text("Téléphone Mobile / WhatsApp", color = NetTextMuted, fontSize = 13.sp) },
+                                            label = { Text("Téléphone Mobile / WhatsApp (Support)", color = NetTextMuted, fontSize = 13.sp) },
                                             leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = NetSecondaryBlue) },
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .testTag("screen_input_phone"),
-                                            shape = RoundedCornerShape(14.dp),
+                                            shape = RoundedCornerShape(16.dp),
                                             singleLine = true,
                                             colors = OutlinedTextFieldDefaults.colors(
                                                 focusedBorderColor = NetSecondaryBlue,
@@ -637,20 +657,20 @@ fun DjangoRegistrationScreen(
                                     }
                                 }
 
-                                // Informational Privacy Badge
+                                // Security Notice Badge
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(16.dp))
+                                        .clip(RoundedCornerShape(18.dp))
                                         .background(NetCardSurface)
-                                        .border(1.dp, NetCardBorder, RoundedCornerShape(16.dp))
-                                        .padding(16.dp)
+                                        .border(1.dp, NetCardBorder, RoundedCornerShape(18.dp))
+                                        .padding(18.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Shield, contentDescription = null, tint = NetOnlineGreen, modifier = Modifier.size(24.dp))
-                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Icon(Icons.Default.Shield, contentDescription = null, tint = NetOnlineGreen, modifier = Modifier.size(26.dp))
+                                        Spacer(modifier = Modifier.width(14.dp))
                                         Text(
-                                            text = "Ces données permettent d'associer le modem à la carte des pannes du serveur Django pour des interventions rapides.",
+                                            text = "Garantie NetGuard : Vos coordonnées sont sécurisées et réservées exclusivement au support technique d'urgence.",
                                             fontSize = 12.sp,
                                             color = NetTextSecondary,
                                             lineHeight = 17.sp
@@ -661,67 +681,68 @@ fun DjangoRegistrationScreen(
                         }
 
                         2 -> {
-                            // PAGE 2: GPS & CODE
-                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            // PAGE 2: GPS GEOLOCATION & PASS CODE
+                            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = RoundedCornerShape(22.dp),
                                     colors = CardDefaults.cardColors(containerColor = NetCardSurface),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, NetCardBorder)
                                 ) {
-                                    Column(modifier = Modifier.padding(20.dp)) {
+                                    Column(modifier = Modifier.padding(22.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Box(
                                                 modifier = Modifier
-                                                    .size(52.dp)
+                                                    .size(56.dp)
                                                     .clip(CircleShape)
                                                     .background(NetOnlineGreen),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                                                Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.White, modifier = Modifier.size(30.dp))
                                             }
                                             Spacer(modifier = Modifier.width(16.dp))
                                             Column {
                                                 Text(
-                                                    text = "Géolocalisation & Code 📍",
-                                                    fontSize = 18.sp,
+                                                    text = "Géolocalisation & Carte 📍",
+                                                    fontSize = 19.sp,
                                                     fontWeight = FontWeight.ExtraBold,
                                                     color = NetTextPrimary
                                                 )
-                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Spacer(modifier = Modifier.height(4.dp))
                                                 Text(
-                                                    text = "Position exacte pour la cartographie des techniciens NetGuard",
+                                                    text = "Coordonnées GPS précises pour guider l'équipe technique d'intervention.",
                                                     fontSize = 12.sp,
-                                                    color = NetTextSecondary
+                                                    color = NetTextSecondary,
+                                                    lineHeight = 16.sp
                                                 )
                                             }
                                         }
 
-                                        Spacer(modifier = Modifier.height(20.dp))
+                                        Spacer(modifier = Modifier.height(22.dp))
 
-                                        // Auto GPS Button
+                                        // Auto GPS Capture Button
                                         Button(
                                             onClick = { requestGpsLocation() },
-                                            shape = RoundedCornerShape(14.dp),
+                                            shape = RoundedCornerShape(16.dp),
                                             colors = ButtonDefaults.buttonColors(
                                                 containerColor = NetOnlineGreen,
                                                 contentColor = Color.White
                                             ),
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(50.dp)
+                                                .height(54.dp)
                                                 .testTag("screen_fetch_gps_button")
                                         ) {
-                                            Icon(Icons.Default.MyLocation, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                            Icon(Icons.Default.MyLocation, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
                                             Spacer(modifier = Modifier.width(10.dp))
-                                            Text("Capturer ma Position GPS", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                            Text("Capturer ma Position GPS Exacte", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
                                         }
 
-                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Spacer(modifier = Modifier.height(18.dp))
 
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(14.dp)
                                         ) {
                                             OutlinedTextField(
                                                 value = latitudeText,
@@ -731,7 +752,7 @@ fun DjangoRegistrationScreen(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .testTag("screen_input_latitude"),
-                                                shape = RoundedCornerShape(14.dp),
+                                                shape = RoundedCornerShape(16.dp),
                                                 singleLine = true,
                                                 colors = OutlinedTextFieldDefaults.colors(
                                                     focusedBorderColor = NetOnlineGreen,
@@ -748,7 +769,7 @@ fun DjangoRegistrationScreen(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .testTag("screen_input_longitude"),
-                                                shape = RoundedCornerShape(14.dp),
+                                                shape = RoundedCornerShape(16.dp),
                                                 singleLine = true,
                                                 colors = OutlinedTextFieldDefaults.colors(
                                                     focusedBorderColor = NetOnlineGreen,
@@ -759,7 +780,8 @@ fun DjangoRegistrationScreen(
                                             )
                                         }
 
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Spacer(modifier = Modifier.height(10.dp))
+
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Box(
                                                 modifier = Modifier
@@ -767,7 +789,7 @@ fun DjangoRegistrationScreen(
                                                     .clip(CircleShape)
                                                     .background(NetOnlineGreen)
                                             )
-                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
                                             Text(
                                                 text = "Source : $locationSource",
                                                 color = NetOnlineGreen,
@@ -778,17 +800,17 @@ fun DjangoRegistrationScreen(
                                     }
                                 }
 
-                                // Unique Ticket/Pass Code Card
+                                // Unique Subscriber Code Pass Card
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = RoundedCornerShape(22.dp),
                                     colors = CardDefaults.cardColors(containerColor = NetCardSurface),
                                     border = androidx.compose.foundation.BorderStroke(1.5.dp, NetSecondaryBlue)
                                 ) {
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(20.dp)
+                                            .padding(22.dp)
                                     ) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
@@ -796,8 +818,8 @@ fun DjangoRegistrationScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Column {
-                                                Text("Code Identifiant Client Unique :", color = NetTextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text("Code Identifiant Unique Abonné :", color = NetTextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                                Spacer(modifier = Modifier.height(6.dp))
                                                 Text(
                                                     text = clientCode,
                                                     color = NetSecondaryBlue,
@@ -831,12 +853,12 @@ fun DjangoRegistrationScreen(
                                             }
                                         }
 
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Spacer(modifier = Modifier.height(10.dp))
                                         Text(
-                                            text = "Ce code unique sera associé aux rapports de panne automatiques transmis à l'équipe réseau.",
+                                            text = "Ce code unique est automatiquement injecté dans chaque rapport de panne transmis à la console Django d'administration.",
                                             fontSize = 11.sp,
                                             color = NetTextMuted,
-                                            lineHeight = 15.sp
+                                            lineHeight = 16.sp
                                         )
                                     }
                                 }
@@ -844,43 +866,43 @@ fun DjangoRegistrationScreen(
                         }
 
                         3 -> {
-                            // PAGE 3: DJANGO BACKEND & SUMMARY
-                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            // PAGE 3: DJANGO BACKEND & FINAL VALIDATION
+                            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = RoundedCornerShape(22.dp),
                                     colors = CardDefaults.cardColors(containerColor = NetCardSurface),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, NetCardBorder)
                                 ) {
-                                    Column(modifier = Modifier.padding(20.dp)) {
+                                    Column(modifier = Modifier.padding(22.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Box(
                                                 modifier = Modifier
-                                                    .size(52.dp)
+                                                    .size(56.dp)
                                                     .clip(CircleShape)
                                                     .background(NetPrimaryCyan),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Icon(Icons.Default.Dns, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                                                Icon(Icons.Default.Dns, contentDescription = null, tint = Color.White, modifier = Modifier.size(30.dp))
                                             }
                                             Spacer(modifier = Modifier.width(16.dp))
                                             Column {
                                                 Text(
                                                     text = "Serveur Django Admin 🌐",
-                                                    fontSize = 18.sp,
+                                                    fontSize = 19.sp,
                                                     fontWeight = FontWeight.ExtraBold,
                                                     color = NetTextPrimary
                                                 )
-                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Spacer(modifier = Modifier.height(4.dp))
                                                 Text(
-                                                    text = "URL de synchronisation du backend d'administration",
+                                                    text = "Adresse Endpoint de l'API de supervision télécom",
                                                     fontSize = 12.sp,
                                                     color = NetTextSecondary
                                                 )
                                             }
                                         }
 
-                                        Spacer(modifier = Modifier.height(20.dp))
+                                        Spacer(modifier = Modifier.height(22.dp))
 
                                         OutlinedTextField(
                                             value = djangoBackendUrl,
@@ -890,7 +912,7 @@ fun DjangoRegistrationScreen(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .testTag("screen_input_django_url"),
-                                            shape = RoundedCornerShape(14.dp),
+                                            shape = RoundedCornerShape(16.dp),
                                             singleLine = true,
                                             colors = OutlinedTextFieldDefaults.colors(
                                                 focusedBorderColor = NetSecondaryBlue,
@@ -905,11 +927,11 @@ fun DjangoRegistrationScreen(
                                 // Digital Pass / Fiche Recap Card
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = RoundedCornerShape(22.dp),
                                     colors = CardDefaults.cardColors(containerColor = NetCardSurface),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, NetCardBorder)
                                 ) {
-                                    Column(modifier = Modifier.padding(20.dp)) {
+                                    Column(modifier = Modifier.padding(22.dp)) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -917,37 +939,37 @@ fun DjangoRegistrationScreen(
                                         ) {
                                             Text(
                                                 text = "Fiche Abonné Prête à Transmettre 📄",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 15.sp,
                                                 color = NetTextPrimary
                                             )
                                             Box(
                                                 modifier = Modifier
-                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .clip(RoundedCornerShape(10.dp))
                                                     .background(NetOnlineGreen.copy(alpha = 0.15f))
-                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                    .padding(horizontal = 10.dp, vertical = 5.dp)
                                             ) {
                                                 Text("🟢 Prêt à valider", color = NetOnlineGreen, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                                             }
                                         }
 
-                                        Spacer(modifier = Modifier.height(14.dp))
+                                        Spacer(modifier = Modifier.height(16.dp))
 
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .clip(RoundedCornerShape(14.dp))
+                                                .clip(RoundedCornerShape(16.dp))
                                                 .background(NetDarkBackground)
-                                                .padding(14.dp)
+                                                .padding(16.dp)
                                         ) {
-                                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                                     Text("Client :", color = NetTextMuted, fontSize = 12.sp)
-                                                    Text(clientName.ifBlank { "Non renseigné" }, color = NetTextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                    Text(clientName.ifBlank { "Non renseigné" }, color = NetTextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                                 }
                                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                                    Text("Code Unique :", color = NetTextMuted, fontSize = 12.sp)
-                                                    Text(clientCode, color = NetSecondaryBlue, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                                                    Text("Code Identifiant :", color = NetTextMuted, fontSize = 12.sp)
+                                                    Text(clientCode, color = NetSecondaryBlue, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
                                                 }
                                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                                     Text("Localisation :", color = NetTextMuted, fontSize = 12.sp)
