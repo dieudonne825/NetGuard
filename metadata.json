@@ -1,0 +1,6 @@
+{
+  "name": "NetGuard",
+  "description": "Surveillance réseau en temps réel, alertes de coupure FAI vs courant, tests de débit et modems 3D interactifs",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
