@@ -89,7 +89,12 @@ fun OutageAlertPopupDialog(
         label = "pulseAlpha"
     )
 
-    val badgeColor = if (faultType == NetworkFaultType.ISP_OUTAGE) NetAlertRed else NetWarningAmber
+    val isWifiInterference = faultType == NetworkFaultType.WIFI_INTERFERENCE
+    val badgeColor = when {
+        faultType == NetworkFaultType.ISP_OUTAGE -> NetAlertRed
+        isWifiInterference -> NetSecondaryBlue
+        else -> NetWarningAmber
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -127,7 +132,7 @@ fun OutageAlertPopupDialog(
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Pulsing Warning Icon Container
+                    // Icon Container
                     Box(
                         modifier = Modifier
                             .size(64.dp)
@@ -136,8 +141,8 @@ fun OutageAlertPopupDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = "Alerte Panne",
+                            imageVector = if (isWifiInterference) Icons.Default.Router else Icons.Default.Warning,
+                            contentDescription = "Diagnostic Réseau",
                             tint = badgeColor,
                             modifier = Modifier.size(32.dp)
                         )
@@ -165,7 +170,7 @@ fun OutageAlertPopupDialog(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "${faultType.category} • SEV: ${faultType.severity}",
+                            text = if (isWifiInterference) "RÉSEAU ACTIF • SIGNAL TEMPORAIREMENT ATTÉNUÉ" else "${faultType.category} • SEV: ${faultType.severity}",
                             color = badgeColor,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold

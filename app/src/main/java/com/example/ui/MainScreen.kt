@@ -52,6 +52,8 @@ import com.example.model.NetworkFaultType
 import com.example.ui.components.IncidentReportDialog
 import com.example.ui.components.OutageAlertPopupDialog
 import com.example.ui.components.OverlayPermissionPromptDialog
+import com.example.ui.components.PermissionsOnboardingDialog
+import com.example.ui.components.hasAllRequiredPermissions
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.DjangoRegistrationScreen
 import com.example.ui.screens.Modem3DVisualScreen
@@ -84,6 +86,7 @@ fun MainScreen(
     var currentTab by remember { mutableStateOf(0) }
     var showSimMenu by remember { mutableStateOf(false) }
     var showOverlayPermissionPrompt by remember { mutableStateOf(!NetGuardOverlayManager.hasOverlayPermission(context)) }
+    var showPermissionsOnboarding by remember { mutableStateOf(!hasAllRequiredPermissions(context)) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.userNotificationMessage) {
@@ -150,6 +153,15 @@ fun MainScreen(
                         expanded = showSimMenu,
                         onDismissRequest = { showSimMenu = false }
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("🛡️ Autorisations & Permissions App", color = NetPrimaryCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp) },
+                            onClick = {
+                                showSimMenu = false
+                                showPermissionsOnboarding = true
+                            },
+                            modifier = Modifier.testTag("menu_permissions_item")
+                        )
+
                         DropdownMenuItem(
                             text = { Text("📋 Enregistrement Client & Django Backend", color = NetPrimaryCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp) },
                             onClick = {
@@ -331,8 +343,19 @@ fun MainScreen(
                 )
             }
 
+            // Permissions Onboarding Dialog on Launch
+            if (showPermissionsOnboarding && !uiState.showDjangoRegistrationDialog) {
+                PermissionsOnboardingDialog(
+                    onDismiss = { showPermissionsOnboarding = false },
+                    onAllPermissionsGranted = {
+                        showPermissionsOnboarding = false
+                        Toast.makeText(context, "Toutes les autorisations sont actives !", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+
             // Overlay Permission Prompt Dialog on Launch
-            if (showOverlayPermissionPrompt && !NetGuardOverlayManager.hasOverlayPermission(context) && !uiState.showDjangoRegistrationDialog) {
+            if (showOverlayPermissionPrompt && !NetGuardOverlayManager.hasOverlayPermission(context) && !uiState.showDjangoRegistrationDialog && !showPermissionsOnboarding) {
                 OverlayPermissionPromptDialog(
                     onDismiss = { showOverlayPermissionPrompt = false }
                 )

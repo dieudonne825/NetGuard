@@ -72,7 +72,7 @@ object OutageNotificationManager {
         )
 
         // Intent to send SMS to Telecom Integrator (688137007)
-        val smsText = "[NETGUARD] PANNE ${faultType.title} (Code: ${faultType.errorCode}) Box: $modemName"
+        val smsText = "[NetGuard] Diagnostic: ${faultType.title} (Code: ${faultType.errorCode}) - Box: $modemName"
         val smsIntent = Intent(Intent.ACTION_SENDTO).apply {
             data = Uri.parse("smsto:688137007")
             putExtra("sms_body", smsText)
@@ -85,28 +85,40 @@ object OutageNotificationManager {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val isMinorOrTransient = faultType == NetworkFaultType.WIFI_INTERFERENCE || faultType == NetworkFaultType.FIBER_SIGNAL_LOW
+        val notifTitle = if (isMinorOrTransient) "NetGuard • Signal Atténué" else "NetGuard • Alerte Réseau"
+        val notifSummary = if (isMinorOrTransient) {
+            "Perturbation ou baisse de signal Wi-Fi détectée sur $modemName."
+        } else {
+            "Incident détecté : ${faultType.title}."
+        }
+
+        val bigTextContent = buildString {
+            append("Équipement : $modemName\n")
+            append("Diagnostic : ${faultType.title}\n\n")
+            append("${faultType.description}\n\n")
+            append("💡 Conseil : ${faultType.recommendedFix}")
+        }
+
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_notify_error)
-            .setContentTitle("⚠️ PANNE RÉSEAU : ${faultType.title}")
-            .setContentText("${faultType.description} — Appuyez pour signaler au 688137007.")
-            .setStyle(
-                NotificationCompat.BigTextStyle()
-                    .bigText("${faultType.description}\n\n💡 Solution : ${faultType.recommendedFix}\n\n📲 Signalement SMS prêt pour l'Intégrateur Télécom (688137007).")
-            )
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentTitle(notifTitle)
+            .setContentText(notifSummary)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(bigTextContent))
+            .setPriority(if (isMinorOrTransient) NotificationCompat.PRIORITY_DEFAULT else NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setColor(0xFF00B4D8.toInt()) // NetGuard Accent Cyan
             .setOnlyAlertOnce(true)
             .setAutoCancel(true)
             .setContentIntent(appPendingIntent)
             .addAction(
                 android.R.drawable.ic_menu_send,
-                "📲 Envoi SMS 688137007",
+                "Signaler par SMS",
                 smsPendingIntent
             )
             .addAction(
                 android.R.drawable.ic_menu_view,
-                "🔍 Ouvrir NetGuard",
+                "Consulter NetGuard",
                 appPendingIntent
             )
 
@@ -143,16 +155,16 @@ object OutageNotificationManager {
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_notify_chat)
-            .setContentTitle("📩 SMS Support Technicien : $ticketRef")
-            .setContentText("Nouveau Statut : $readableStatus (de $sender)")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("NetGuard • Suivi Ticket $ticketRef")
+            .setContentText("Statut mis à jour : $readableStatus")
             .setStyle(
                 NotificationCompat.BigTextStyle()
-                    .bigText("Ticket : $ticketRef\nNouveau Statut : $readableStatus\nExpéditeur : $sender\nMessage : $message")
+                    .bigText("Ticket : $ticketRef\nStatut : $readableStatus\nSupport : $sender\nMessage : $message")
             )
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setColor(0xFF0284C7.toInt())
             .setAutoCancel(true)
             .setContentIntent(appPendingIntent)
 
