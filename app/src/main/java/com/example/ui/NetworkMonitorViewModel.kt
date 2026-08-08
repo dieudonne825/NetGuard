@@ -82,7 +82,10 @@ data class NetworkUiState(
     val currentWifiSsid: String = "Non Connecté",
     val isCurrentWifiSupervised: Boolean = true,
     val wifiSignalLevelPct: Int = 0,
-    val wifiFrequencyBand: String = "N/A"
+    val wifiFrequencyBand: String = "N/A",
+    val speedTestSamples: List<Float> = emptyList(),
+    val selectedSpeedTestServer: String = "CAMTEL Datacenter (Douala, CM)",
+    val speedTestStage: String = "IDLE" // IDLE, PING, DOWNLOAD, UPLOAD, FINISHED
 )
 
 class NetworkMonitorViewModel(application: Application) : AndroidViewModel(application) {
@@ -595,6 +598,10 @@ class NetworkMonitorViewModel(application: Application) : AndroidViewModel(appli
         _uiState.update { it.copy(userNotificationMessage = null) }
     }
 
+    fun selectSpeedTestServer(serverName: String) {
+        _uiState.update { it.copy(selectedSpeedTestServer = serverName) }
+    }
+
     fun startSpeedTest() {
         if (_uiState.value.isRunningSpeedTest) return
 
@@ -603,60 +610,91 @@ class NetworkMonitorViewModel(application: Application) : AndroidViewModel(appli
                 it.copy(
                     isRunningSpeedTest = true,
                     speedTestProgress = 0f,
-                    currentSpeedPhase = "Connexion au serveur de test..."
+                    speedTestStage = "PING",
+                    currentSpeedPhase = "Connexion & Analyse du Ping...",
+                    speedTestSamples = emptyList(),
+                    downloadSpeedMbps = 0.0,
+                    uploadSpeedMbps = 0.0
                 )
             }
 
             // Phase 1: Ping & Jitter test
-            delay(800)
-            val testPing = if (_uiState.value.faultType == NetworkFaultType.NONE_ONLINE) Random.nextInt(12, 24) else 999
-            val testJitter = Random.nextInt(1, 4)
+            for (i in 1..4) {
+                delay(150)
+                val livePing = if (_uiState.value.faultType == NetworkFaultType.NONE_ONLINE) Random.nextInt(12, 22) else 999
+                _uiState.update {
+                    it.copy(
+                        speedTestProgress = 0.05f + (i * 0.04f),
+                        latencyMs = livePing
+                    )
+                }
+            }
+
+            val testPing = if (_uiState.value.faultType == NetworkFaultType.NONE_ONLINE) Random.nextInt(12, 20) else 999
+            val testJitter = Random.nextInt(1, 3)
             _uiState.update {
                 it.copy(
-                    speedTestProgress = 0.25f,
+                    speedTestProgress = 0.20f,
                     latencyMs = testPing,
                     jitterMs = testJitter,
+                    speedTestStage = "DOWNLOAD",
                     currentSpeedPhase = "Mesure du débit descendant (Download)..."
                 )
             }
 
             // Phase 2: Download
             var dl = 0.0
-            val maxDl = if (_uiState.value.faultType == NetworkFaultType.NONE_ONLINE) 750.0 else 0.0
-            for (step in 1..10) {
-                delay(150)
-                dl = (maxDl * (step / 10.0)) + Random.nextDouble(-15.0, 15.0)
+            val maxDl = if (_uiState.value.faultType == NetworkFaultType.NONE_ONLINE) 780.0 else 0.0
+            val dlSamples = mutableListOf<Float>()
+
+            for (step in 1..16) {
+                delay(120)
+                val progressRatio = step / 16.0
+                val speedCurve = Math.sin(progressRatio * Math.PI / 2)
+                dl = (maxDl * speedCurve) + Random.nextDouble(-12.0, 15.0)
                 if (dl < 0) dl = 0.0
-                _uiState.update {
-                    it.copy(
-                        speedTestProgress = 0.25f + (step / 20f),
-                        downloadSpeedMbps = String.format(Locale.US, "%.1f", dl).toDouble()
+                dlSamples.add(dl.toFloat())
+
+                _uiState.update { state ->
+                    state.copy(
+                        speedTestProgress = 0.20f + (step / 32f),
+                        downloadSpeedMbps = String.format(Locale.US, "%.1f", dl).toDouble(),
+                        speedTestSamples = dlSamples.toList()
                     )
                 }
             }
 
             // Phase 3: Upload
+            val finalDl = _uiState.value.downloadSpeedMbps
+            val ulSamples = mutableListOf<Float>()
+
             _uiState.update {
                 it.copy(
-                    speedTestProgress = 0.75f,
-                    currentSpeedPhase = "Mesure du débit montant (Upload)..."
+                    speedTestProgress = 0.70f,
+                    speedTestStage = "UPLOAD",
+                    currentSpeedPhase = "Mesure du débit montant (Upload)...",
+                    speedTestSamples = emptyList()
                 )
             }
             var ul = 0.0
-            val maxUl = if (_uiState.value.faultType == NetworkFaultType.NONE_ONLINE) 420.0 else 0.0
-            for (step in 1..10) {
-                delay(150)
-                ul = (maxUl * (step / 10.0)) + Random.nextDouble(-10.0, 10.0)
+            val maxUl = if (_uiState.value.faultType == NetworkFaultType.NONE_ONLINE) 430.0 else 0.0
+            for (step in 1..16) {
+                delay(120)
+                val progressRatio = step / 16.0
+                val speedCurve = Math.sin(progressRatio * Math.PI / 2)
+                ul = (maxUl * speedCurve) + Random.nextDouble(-8.0, 10.0)
                 if (ul < 0) ul = 0.0
-                _uiState.update {
-                    it.copy(
-                        speedTestProgress = 0.75f + (step / 40f),
-                        uploadSpeedMbps = String.format(Locale.US, "%.1f", ul).toDouble()
+                ulSamples.add(ul.toFloat())
+
+                _uiState.update { state ->
+                    state.copy(
+                        speedTestProgress = 0.70f + (step / 53f),
+                        uploadSpeedMbps = String.format(Locale.US, "%.1f", ul).toDouble(),
+                        speedTestSamples = ulSamples.toList()
                     )
                 }
             }
 
-            val finalDl = _uiState.value.downloadSpeedMbps
             val finalUl = _uiState.value.uploadSpeedMbps
             val record = SpeedTestRecord(
                 downloadMbps = finalDl,
@@ -672,6 +710,7 @@ class NetworkMonitorViewModel(application: Application) : AndroidViewModel(appli
                 it.copy(
                     isRunningSpeedTest = false,
                     speedTestProgress = 1.0f,
+                    speedTestStage = "FINISHED",
                     currentSpeedPhase = "Test terminé !"
                 )
             }

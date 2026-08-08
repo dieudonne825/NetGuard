@@ -304,7 +304,8 @@ fun MainScreen(
                 2 -> SpeedTestScreen(
                     uiState = uiState,
                     history = speedTests,
-                    onStartSpeedTest = { viewModel.startSpeedTest() }
+                    onStartSpeedTest = { viewModel.startSpeedTest() },
+                    onSelectServer = { serverName -> viewModel.selectSpeedTestServer(serverName) }
                 )
                 3 -> TicketsAndLogsScreen(
                     outages = outages,
